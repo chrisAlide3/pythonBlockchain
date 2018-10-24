@@ -23,6 +23,8 @@ def add_transaction(transaction_value, last_transaction=[1.0]):
 
     blockchain.append([last_transaction, transaction_value])
 
+def mine_block():
+    pass
 
 def user_choice():
     return input("Your choice: ")
