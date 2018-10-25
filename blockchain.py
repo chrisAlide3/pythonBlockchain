@@ -67,6 +67,7 @@ def display_choices():
     print("1: Enter new transaction")
     print("2: Output blocks")
     print("3: Mine block")
+    print("4: Display balance")
     print("h: Manipulate the chain")
     print("v: Verify blockchain")
     print("x: Exit")
@@ -82,6 +83,19 @@ def print_blockchain_elements():
         else:
             print("-" * 30)
 
+def display_balance(name):
+    balance = 0
+    for block in blockchain:
+        print(block)
+        for sender, recipient, amount in block['transactions']:
+            print(sender.value)
+            print(recipient.value)
+            print(amount.value)
+            if sender.value == name:
+                balance = balance - amount.value
+            if recipient.value == name:
+                balance = balance - amount.value
+    return balance
 
 def verify_chain():
     is_valid = True
@@ -131,6 +145,11 @@ while waiting_for_input:
         else:
             mine_block()
             open_transactions = []
+
+    elif selected_choice == '4':
+        name = input("Enter name for balance: ")
+        print(display_balance(name))
+
 
     elif selected_choice == 'h':
         if len(blockchain) >= 1:
