@@ -1,3 +1,5 @@
+MINING_REWARD = 10
+
 genesis_block = {'previous_hash': '',
                  'index': 0,
                  'transactions': []}
@@ -23,6 +25,12 @@ def get_transaction_values():
     # Returns a tuple
     return (tx_recipient, tx_amount)
 
+def verify_transaction(transaction):
+    balance = get_balance(transaction['sender'])
+    if balance < transaction['amount']:
+        return False, transaction['amount'], balance
+    else:
+        return True, transaction['amount'], balance
 
 def add_transaction(recipient, sender=owner, amount=1.0):
     """Adds transactions to the open_transactions dictionary
@@ -32,9 +40,15 @@ def add_transaction(recipient, sender=owner, amount=1.0):
         :amount: the value of the transaction (default 1.0)
     """
     transaction = {'sender': sender, 'recipient': recipient, 'amount': amount}
-    open_transactions.append(transaction)
-    participants.add(sender)
-    participants.add(recipient)
+    
+    success, tx_amount, balance = verify_transaction(transaction)
+    if success:
+        open_transactions.append(transaction)
+        participants.add(sender)
+        participants.add(recipient)
+        return True, tx_amount, balance
+    else:
+        return False, tx_amount, balance
 
 
 def mine_block():
@@ -43,11 +57,20 @@ def mine_block():
 
     hashed_block = hash_block(last_block)
 
+    reward_transaction = {
+        'sender': 'MINING',
+        'recipient': owner,
+        'amount': MINING_REWARD
+    }
+
+    open_transactions.append(reward_transaction)
+
     block = {'previous_hash': hashed_block,
              'index': len(blockchain),
              'transactions': open_transactions}
 
     blockchain.append(block)
+    return True
 
 
 def user_choice():
@@ -66,6 +89,10 @@ def display_choices():
     print("x: Exit")
 
 
+def press_enter_to_continue():
+    input("---- Press ENTER to continue ----")
+
+
 def print_blockchain_elements():
     if len(blockchain) < 1:
         print("This blockchain is empty!")
@@ -76,16 +103,42 @@ def print_blockchain_elements():
         else:
             print("-" * 30)
 
-def display_balance(name):
-    balance = 0
-    for block_idx in range(len(blockchain)):
-        # for sender, recipient, amount in block['transactions']:
-        for idx_transaction in range(len(blockchain[block_idx]['transactions'])):
-            if blockchain[block_idx]['transactions'][idx_transaction]['sender'] == name:
-                balance = balance - blockchain[block_idx]['transactions'][idx_transaction]['amount']
-            if blockchain[block_idx]['transactions'][idx_transaction]['recipient'] == name:
-                balance = balance + blockchain[block_idx]['transactions'][idx_transaction]['amount']
-    return balance
+
+def get_balance(participant):
+    sent_amount = 0
+    # Sent amounts in Blockchain
+    tx_sender = [[tx['amount'] for tx in block['transactions'] if tx['sender'] == participant] for block in blockchain]
+    # Sent amounts in open Transactions
+    open_tx_sender = [tx['amount'] for tx in open_transactions if tx['sender'] == participant]
+    tx_sender.append(open_tx_sender)
+    for tx in tx_sender:
+        if len(tx) > 0:
+            idx = 0
+            while idx < len(tx):
+                sent_amount += tx[idx]
+                idx += 1
+
+    received_amount = 0
+    # Received amounts in Blockchain
+    tx_recipient = [[tx['amount'] for tx in block['transactions'] if tx['recipient'] == participant] for block in blockchain]
+    for tx in tx_recipient:
+        if len(tx) > 0:
+            idx = 0
+            while idx < len(tx):
+                received_amount += tx[idx]
+                idx += 1
+
+    return received_amount - sent_amount
+
+    # balance = 0
+    # for block_idx in range(len(blockchain)):
+    #     for tx_idx in range(len(blockchain[block_idx]['transactions'])):
+    #         if blockchain[block_idx]['transactions'][tx_idx]['sender'] == participant:
+    #             balance = balance - blockchain[block_idx]['transactions'][tx_idx]['amount']
+    #         if blockchain[block_idx]['transactions'][tx_idx]['recipient'] == participant:
+    #             balance = balance + blockchain[block_idx]['transactions'][tx_idx]['amount']
+    # return balance
+
 
 def hash_block(block):
     return '-'.join([str(block[key]) for key in block])
@@ -139,23 +192,37 @@ while waiting_for_input:
         tx_data = get_transaction_values()
         # unpacking the returned tuple
         recipient, amount = tx_data
-        add_transaction(recipient, amount=amount)
+        # if add_transaction(recipient, amount=amount):
+        success, tx_transaction, balance = add_transaction(recipient, amount=amount)
+        if success:
+            print('Transaction completed succesfully!')
+        else:
+            print("Your balance of " + str(balance) + " is to low for this transaction of " + str(tx_transaction) + " coins!")
+
+        press_enter_to_continue()
 
     elif selected_choice == '2':
         print_blockchain_elements()
+        press_enter_to_continue()
 
     elif selected_choice == '3':
-        mine_block()
-        open_transactions = []
+        if mine_block():
+            open_transactions = []
+            print("Block mined succesfully!")
+        else:
+            print("Error mining block! Try again")
+        press_enter_to_continue()
 
     elif selected_choice == '4':
         print(participants)
+        press_enter_to_continue()
 
     elif selected_choice == '5':
-        name = input("Enter name for balance: ")
-        print(name + " your balance is: ")
-        print(display_balance(name))
+        participant = input("Enter name for balance: ")
+        print(participant + " your balance is: ")
+        print(get_balance(participant))
         print("-" * 30)
+        press_enter_to_continue()
 
     elif selected_choice == 'h':
         if len(blockchain) >= 1:
@@ -164,8 +231,9 @@ while waiting_for_input:
                              'transactions': [{'sender': 'Marc', 'recipient': 'Chris', 'amount': 100.0}]}
 
     elif selected_choice == 'v':
-        print("Chain Valid: " + str(verify_chain()))
         print_blockchain_elements()
+        print("Chain Valid: " + str(verify_chain()))
+        press_enter_to_continue()
 
     elif selected_choice == 'x':
         waiting_for_input = False
@@ -174,8 +242,9 @@ while waiting_for_input:
         print("Invalid choice! Try again")
 
     if not verify_chain():
-        print("Invalid blockchain!!")
         print_blockchain_elements()
+        print("Invalid blockchain!!")
+        press_enter_to_continue()
         break
 else:
     print("User has quitted!")
