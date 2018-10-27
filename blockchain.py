@@ -1,3 +1,5 @@
+import functools
+
 MINING_REWARD = 10
 
 genesis_block = {'previous_hash': '',
@@ -28,9 +30,9 @@ def get_transaction_values():
 def verify_transaction(transaction):
     balance = get_balance(transaction['sender'])
     if balance < transaction['amount']:
-        return False, transaction['amount'], balance
+        return False
     else:
-        return True, transaction['amount'], balance
+        return True
 
 def add_transaction(recipient, sender=owner, amount=1.0):
     """Adds transactions to the open_transactions dictionary
@@ -41,14 +43,13 @@ def add_transaction(recipient, sender=owner, amount=1.0):
     """
     transaction = {'sender': sender, 'recipient': recipient, 'amount': amount}
     
-    success, tx_amount, balance = verify_transaction(transaction)
-    if success:
+    if verify_transaction(transaction):
         open_transactions.append(transaction)
         participants.add(sender)
         participants.add(recipient)
-        return True, tx_amount, balance
+        return True
     else:
-        return False, tx_amount, balance
+        return False
 
 
 def mine_block():
@@ -56,6 +57,10 @@ def mine_block():
     last_block = blockchain[-1]
 
     hashed_block = hash_block(last_block)
+    # We copy the list open_transaction with the ':' range selector to copy the whole list
+    # In complex objects like lists,tuples,sets,dictionary just assigning a new value
+    # with '=' just copies the reference. So if we change the copied list it will also be changed in the original
+    copied_open_transactions = open_transactions[:]
 
     reward_transaction = {
         'sender': 'MINING',
@@ -63,11 +68,11 @@ def mine_block():
         'amount': MINING_REWARD
     }
 
-    open_transactions.append(reward_transaction)
+    copied_open_transactions.append(reward_transaction)
 
     block = {'previous_hash': hashed_block,
              'index': len(blockchain),
-             'transactions': open_transactions}
+             'transactions': copied_open_transactions}
 
     blockchain.append(block)
     return True
@@ -84,6 +89,7 @@ def display_choices():
     print("3: Mine block")
     print("4: Show participants of the network")
     print("5: Show Balance of participant")
+    print("6: Check transactions validity")
     print("h: Manipulate the chain")
     print("v: Verify blockchain")
     print("x: Exit")
@@ -105,31 +111,44 @@ def print_blockchain_elements():
 
 
 def get_balance(participant):
-    sent_amount = 0
     # Sent amounts in Blockchain
     tx_sender = [[tx['amount'] for tx in block['transactions'] if tx['sender'] == participant] for block in blockchain]
     # Sent amounts in open Transactions
     open_tx_sender = [tx['amount'] for tx in open_transactions if tx['sender'] == participant]
     tx_sender.append(open_tx_sender)
-    for tx in tx_sender:
-        if len(tx) > 0:
-            idx = 0
-            while idx < len(tx):
-                sent_amount += tx[idx]
-                idx += 1
 
-    received_amount = 0
-    # Received amounts in Blockchain
     tx_recipient = [[tx['amount'] for tx in block['transactions'] if tx['recipient'] == participant] for block in blockchain]
-    for tx in tx_recipient:
-        if len(tx) > 0:
-            idx = 0
-            while idx < len(tx):
-                received_amount += tx[idx]
-                idx += 1
+
+
+    # Calculating amount with use of reducer and lambda function
+    # Reduce function has to be imported from functools.1st argument is a function, 2nd is the Listname
+    # 3rd optional is the start value. It returns the old value + new value of operation 
+    # Lambda is a temporary function. The fields after lambda are the arguments followed by ':' Then the function itself
+    sent_amount = functools.reduce(lambda tx_sum, tx_amount: tx_sum + sum(tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_sender, 0)
+    received_amount = functools.reduce(lambda tx_sum, tx_amount: tx_sum + sum(tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_recipient, 0)
 
     return received_amount - sent_amount
 
+    # Calculating amount with use of For loop
+    # sent_amount = 0
+    # for tx in tx_sender:
+    #     if len(tx) > 0:
+    #         idx = 0
+    #         while idx < len(tx):
+    #             sent_amount += tx[idx]
+    #             idx += 1
+
+    # received_amount = 0
+    # # Received amounts in Blockchain
+    # tx_recipient = [[tx['amount'] for tx in block['transactions'] if tx['recipient'] == participant] for block in blockchain]
+    # for tx in tx_recipient:
+    #     if len(tx) > 0:
+    #         idx = 0
+    #         while idx < len(tx):
+    #             received_amount += tx[idx]
+    #             idx += 1
+
+    # Other way to calculate the balance (My first solution I come up)
     # balance = 0
     # for block_idx in range(len(blockchain)):
     #     for tx_idx in range(len(blockchain[block_idx]['transactions'])):
@@ -182,6 +201,12 @@ def verify_chain():
     #             break
     # return is_valid
 
+def verify_transactions():
+    # The all keyword checks if returned list of ALL booleans are True
+    # If its the case it returns True, if not it returns False
+    # Here we verify each transactions from open_transactions and run the 
+    # verify_transaction function, which returns True or False
+    return all([verify_transaction(tx) for tx in open_transactions])
 
 waiting_for_input = True
 while waiting_for_input:
@@ -193,11 +218,10 @@ while waiting_for_input:
         # unpacking the returned tuple
         recipient, amount = tx_data
         # if add_transaction(recipient, amount=amount):
-        success, tx_transaction, balance = add_transaction(recipient, amount=amount)
-        if success:
+        if add_transaction(recipient, amount=amount):
             print('Transaction completed succesfully!')
         else:
-            print("Your balance of " + str(balance) + " is to low for this transaction of " + str(tx_transaction) + " coins!")
+            print("Insufficient funds for this transaction!")
 
         press_enter_to_continue()
 
@@ -219,10 +243,15 @@ while waiting_for_input:
 
     elif selected_choice == '5':
         participant = input("Enter name for balance: ")
-        print(participant + " your balance is: ")
-        print(get_balance(participant))
+        print("The balance of {} is: {:6.2f}".format(participant, get_balance(participant)))
         print("-" * 30)
         press_enter_to_continue()
+
+    elif selected_choice == '6':
+        if verify_transactions():
+            print("All transactions are valid!")
+        else: 
+            print("Some transactions are not valid!")
 
     elif selected_choice == 'h':
         if len(blockchain) >= 1:
@@ -246,6 +275,8 @@ while waiting_for_input:
         print("Invalid blockchain!!")
         press_enter_to_continue()
         break
+    ##          Formats 6 empty spaces before the balance with 2 decimal floats
+    print("{} your actual balance is: {:6.2f}".format(owner, get_balance(owner)))
 else:
     print("User has quitted!")
 
