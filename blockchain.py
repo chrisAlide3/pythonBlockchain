@@ -1,6 +1,8 @@
 import functools
 import hashlib  # For hashing
 from collections import OrderedDict  # to sort dictionaries
+import json
+import pickle #binary JSON alternative
 
 from hash_utils import hash_string_256, hash_block
 
@@ -19,6 +21,75 @@ owner = 'Chris'
 # sets don't allow duplicates. If a duplicate is added it just will be ignored, it doesn't throw an error
 participants = {'Chris'}
 
+
+def load_data():
+    ## Load from PICKLE
+    ## Better implementation of special datatypes (eg. Ordered dicts)
+    ## Cannot display the file in readable form
+    ## Switch to JSON for this course so we can read the file
+    # with open('blockchain.p', mode='rb') as f:
+    #     global blockchain
+    #     global open_transactions
+    #     file_content = pickle.loads(f.read())
+    #     blockchain = file_content['chain']
+    #     open_transactions = file_content['otx']
+
+    ## Load from JSON
+    with open('blockchain.txt', mode='r') as f:
+        text_content = f.readlines()
+        global blockchain
+        global open_transactions
+
+        ## Loading blockchain
+        # Range selector -1 to remove the line break
+        blockchain = json.loads(text_content[0][:-1])
+        # We need to alter the transaction in the block to add the ordereddic structure
+        updated_blockchain = []
+        for block in blockchain:
+            updated_block = {
+                'previous_hash': block['previous_hash'],
+                'index': block['index'],
+                'proof': block['proof'],
+                'transactions': [OrderedDict(
+                    [('sender', tx['sender']),
+                     ('recipient', tx['recipient']),
+                     ('amount', tx['amount'])])
+                    for tx in block['transactions']]
+            }
+            updated_blockchain.append(updated_block)
+
+        blockchain = updated_blockchain
+        ## Loading transactions
+        open_transactions = json.loads(text_content[1])
+        updated_transactions = []
+        for tx in open_transactions:
+            updated_transaction = OrderedDict(
+                    [('sender', tx['sender']),
+                     ('recipient', tx['recipient']),
+                     ('amount', tx['amount'])])
+            updated_transactions.append(updated_transaction)
+        open_transactions = updated_transactions
+
+load_data()
+
+
+def save_data():
+    ## Using PICKLE
+    ## In this course we switch to JSON for readble file (see load_data)
+    # with open('blockchain.p', mode='wb') as f:
+    #     #In binary we cannot make a line break.
+    #     #So we create a dictionary holding the x lists to save
+    #     save_data = {
+    #         'chain': blockchain,
+    #         'otx': open_transactions
+    #     }
+    #     f.write(pickle.dumps(save_data))
+
+    # Using JSON
+    with open('blockchain.txt', mode='w') as f:
+        f.write(json.dumps(blockchain))
+        f.write('\n')
+        f.write(json.dumps(open_transactions))
 
 def get_last_blockchain_value():
     if len(blockchain) < 1:
@@ -77,6 +148,7 @@ def add_transaction(recipient, sender=owner, amount=1.0):
         open_transactions.append(transaction)
         participants.add(sender)
         participants.add(recipient)
+        save_data()
         return True
     else:
         return False
@@ -268,6 +340,7 @@ while waiting_for_input:
     elif selected_choice == '3':
         if mine_block():
             open_transactions = []
+            save_data()
             print("Block mined succesfully!")
         else:
             print("Error mining block! Try again")
