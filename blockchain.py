@@ -1,6 +1,7 @@
 import functools
-import hashlib #For hashing
+import hashlib  # For hashing
 import json
+from collections import OrderedDict  # to sort dictionaries
 
 MINING_REWARD = 10
 
@@ -41,13 +42,14 @@ def verify_transaction(transaction):
 
 
 def hash_block(block):
-    #json.dumps stringifies the block dictionary in json format
-    # encode just encodes it as UTF-8
+    # json.dumps stringifies the block dictionary in json format
+    # We need to add sort_keys=True to make sure the dictionary is always in the same order
+        # encode just encodes it as UTF-8
     # the Hexdigest function at the end returns a hex value to sha256
-    return hashlib.sha256(json.dumps(block).encode()).hexdigest()
-    
+    return hashlib.sha256(json.dumps(block, sort_keys=True).encode()).hexdigest()
+
     # Example creating a string from lists using JOIN. The symbol in front is the delimiter to use
-    #return '-'.join([str(block[key]) for key in block])
+    # return '-'.join([str(block[key]) for key in block])
 
     # Example using comprehesion lists
     # THIS RETURNS a LIST: hashed_block = str([last_block[key] for key in last_block])
@@ -66,7 +68,9 @@ def hash_block(block):
 def valid_proof(transactions, last_hash, proof):
     guess = (str(transactions) + str(last_hash + str(proof))).encode()
     guess_hash = hashlib.sha256(guess).hexdigest()
-    return guess_hash[0:2] == '00' #Returns true or false! not the guess_hash!!
+    # Returns true or false! not the guess_hash!!
+    return guess_hash[0:2] == '00'
+
 
 def proof_of_work(transactions):
     last_block = blockchain[-1]
@@ -76,7 +80,7 @@ def proof_of_work(transactions):
         proof += 1
     print(f"The proof number is: {proof}")
     return proof
-    
+
 
 def add_transaction(recipient, sender=owner, amount=1.0):
     """Adds transactions to the open_transactions dictionary
@@ -85,8 +89,13 @@ def add_transaction(recipient, sender=owner, amount=1.0):
         :recipient: the receiver of the transactio
         :amount: the value of the transaction (default 1.0)
     """
-    transaction = {'sender': sender, 'recipient': recipient, 'amount': amount}
-    
+
+    # As the order of Dictionaries can change we need to work with imported Ordereddics package
+    # The order is important to us for the SHA256 hash algorithm
+    # It's defined as a list of tuples
+    transaction = OrderedDict(
+        [('sender', sender), ('recipient', recipient), ('amount', amount)])
+
     if verify_transaction(transaction):
         open_transactions.append(transaction)
         participants.add(sender)
@@ -110,21 +119,24 @@ def mine_block():
     # To validate the chain we need to remove the reward_transaction before validating it
     proof = proof_of_work(copied_open_transactions)
 
-
-    reward_transaction = {
-        'sender': 'MINING',
-        'recipient': owner,
-        'amount': MINING_REWARD
-    }
+    reward_transaction = OrderedDict([
+        ('sender', 'MINING'),
+        ('recipient', owner),
+        ('amount', MINING_REWARD)
+    ])
+    # reward_transaction = {
+    #     'sender': 'MINING',
+    #     'recipient': owner,
+    #     'amount': MINING_REWARD
+    # }
 
     copied_open_transactions.append(reward_transaction)
 
     block = {'previous_hash': hashed_block,
-            'index': len(blockchain),
-            'transactions': copied_open_transactions,
-            'proof': proof
-            }
-
+             'index': len(blockchain),
+             'transactions': copied_open_transactions,
+             'proof': proof
+             }
 
     blockchain.append(block)
     return True
@@ -164,20 +176,24 @@ def print_blockchain_elements():
 
 def get_balance(participant):
     # Sent amounts in Blockchain
-    tx_sender = [[tx['amount'] for tx in block['transactions'] if tx['sender'] == participant] for block in blockchain]
+    tx_sender = [[tx['amount'] for tx in block['transactions']
+                  if tx['sender'] == participant] for block in blockchain]
     # Sent amounts in open Transactions
-    open_tx_sender = [tx['amount'] for tx in open_transactions if tx['sender'] == participant]
+    open_tx_sender = [tx['amount']
+                      for tx in open_transactions if tx['sender'] == participant]
     tx_sender.append(open_tx_sender)
 
-    tx_recipient = [[tx['amount'] for tx in block['transactions'] if tx['recipient'] == participant] for block in blockchain]
-
+    tx_recipient = [[tx['amount'] for tx in block['transactions']
+                     if tx['recipient'] == participant] for block in blockchain]
 
     # Calculating amount with use of reducer and lambda function
     # Reduce function has to be imported from functools.1st argument is a function, 2nd is the Listname
-    # 3rd optional is the start value. It returns the old value + new value of operation 
+    # 3rd optional is the start value. It returns the old value + new value of operation
     # Lambda is a temporary function. The fields after lambda are the arguments followed by ':' Then the function itself
-    sent_amount = functools.reduce(lambda tx_sum, tx_amount: tx_sum + sum(tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_sender, 0)
-    received_amount = functools.reduce(lambda tx_sum, tx_amount: tx_sum + sum(tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_recipient, 0)
+    sent_amount = functools.reduce(lambda tx_sum, tx_amount: tx_sum + sum(
+        tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_sender, 0)
+    received_amount = functools.reduce(lambda tx_sum, tx_amount: tx_sum + sum(
+        tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_recipient, 0)
 
     return received_amount - sent_amount
 
@@ -219,8 +235,8 @@ def verify_chain():
         if block['previous_hash'] != hash_block(blockchain[index-1]):
             print("Previous hash is invalid!")
             return False
-        #We remove the last transaction with the range operator [:-1]. It's the mining reward
-        #When we mine we don't include it in the proof of work
+        # We remove the last transaction with the range operator [:-1]. It's the mining reward
+        # When we mine we don't include it in the proof of work
         if not valid_proof(block['transactions'][:-1], block['previous_hash'], block['proof']):
             print("Proof of work is invalid")
             return False
@@ -242,12 +258,14 @@ def verify_chain():
     #             break
     # return is_valid
 
+
 def verify_transactions():
     # The all keyword checks if returned list of ALL booleans are True
     # If its the case it returns True, if not it returns False
-    # Here we verify each transactions from open_transactions and run the 
+    # Here we verify each transactions from open_transactions and run the
     # verify_transaction function, which returns True or False
     return all([verify_transaction(tx) for tx in open_transactions])
+
 
 waiting_for_input = True
 while waiting_for_input:
@@ -284,14 +302,15 @@ while waiting_for_input:
 
     elif selected_choice == '5':
         participant = input("Enter name for balance: ")
-        print("The balance of {} is: {:6.2f}".format(participant, get_balance(participant)))
+        print("The balance of {} is: {:6.2f}".format(
+            participant, get_balance(participant)))
         print("-" * 30)
         press_enter_to_continue()
 
     elif selected_choice == '6':
         if verify_transactions():
             print("All transactions are valid!")
-        else: 
+        else:
             print("Some transactions are not valid!")
 
     elif selected_choice == 'h':
@@ -316,7 +335,7 @@ while waiting_for_input:
         print("Invalid blockchain!!")
         press_enter_to_continue()
         break
-    ##          Formats 6 empty spaces before the balance with 2 decimal floats
+    # Formats 6 empty spaces before the balance with 2 decimal floats
     print("{} your actual balance is: {:6.2f}".format(owner, get_balance(owner)))
 else:
     print("User has quitted!")
