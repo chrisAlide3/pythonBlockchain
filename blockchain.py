@@ -23,52 +23,60 @@ participants = {'Chris'}
 
 
 def load_data():
-    ## Load from PICKLE
-    ## Better implementation of special datatypes (eg. Ordered dicts)
-    ## Cannot display the file in readable form
-    ## Switch to JSON for this course so we can read the file
-    # with open('blockchain.p', mode='rb') as f:
-    #     global blockchain
-    #     global open_transactions
-    #     file_content = pickle.loads(f.read())
-    #     blockchain = file_content['chain']
-    #     open_transactions = file_content['otx']
+    ## Runtime Error handling with 'try' and 'except'
+    try:
+        ## Load from PICKLE
+        ## Better implementation of special datatypes (eg. Ordered dicts)
+        ## Cannot display the file in readable form
+        ## Switch to JSON for this course so we can read the file
+        # with open('blockchain.p', mode='rb') as f:
+        #     global blockchain
+        #     global open_transactions
+        #     file_content = pickle.loads(f.read())
+        #     blockchain = file_content['chain']
+        #     open_transactions = file_content['otx']
 
-    ## Load from JSON
-    with open('blockchain.txt', mode='r') as f:
-        text_content = f.readlines()
-        global blockchain
-        global open_transactions
+        ## Load from JSON
+        with open('blockchain.txt', mode='r') as f:
+            text_content = f.readlines()
+            global blockchain
+            global open_transactions
 
-        ## Loading blockchain
-        # Range selector -1 to remove the line break
-        blockchain = json.loads(text_content[0][:-1])
-        # We need to alter the transaction in the block to add the ordereddic structure
-        updated_blockchain = []
-        for block in blockchain:
-            updated_block = {
-                'previous_hash': block['previous_hash'],
-                'index': block['index'],
-                'proof': block['proof'],
-                'transactions': [OrderedDict(
-                    [('sender', tx['sender']),
-                     ('recipient', tx['recipient']),
-                     ('amount', tx['amount'])])
-                    for tx in block['transactions']]
-            }
-            updated_blockchain.append(updated_block)
+            ## Loading blockchain
+            # Range selector -1 to remove the line break
+            blockchain = json.loads(text_content[0][:-1])
+            # We need to alter the transaction in the block to add the ordereddic structure
+            updated_blockchain = []
+            for block in blockchain:
+                updated_block = {
+                    'previous_hash': block['previous_hash'],
+                    'index': block['index'],
+                    'proof': block['proof'],
+                    'transactions': [OrderedDict(
+                        [('sender', tx['sender']),
+                        ('recipient', tx['recipient']),
+                        ('amount', tx['amount'])])
+                        for tx in block['transactions']]
+                }
+                updated_blockchain.append(updated_block)
 
-        blockchain = updated_blockchain
-        ## Loading transactions
-        open_transactions = json.loads(text_content[1])
-        updated_transactions = []
-        for tx in open_transactions:
-            updated_transaction = OrderedDict(
-                    [('sender', tx['sender']),
-                     ('recipient', tx['recipient']),
-                     ('amount', tx['amount'])])
-            updated_transactions.append(updated_transaction)
-        open_transactions = updated_transactions
+            blockchain = updated_blockchain
+            ## Loading transactions
+            open_transactions = json.loads(text_content[1])
+            updated_transactions = []
+            for tx in open_transactions:
+                updated_transaction = OrderedDict(
+                        [('sender', tx['sender']),
+                        ('recipient', tx['recipient']),
+                        ('amount', tx['amount'])])
+                updated_transactions.append(updated_transaction)
+            open_transactions = updated_transactions
+    except IOError:
+        print('File not found')
+    except ValueError:
+        print('Value Error!')
+    finally: #Always executes, if try succeed or Except errors handles. Used to cleanup
+        print('Cleanup!')
 
 load_data()
 
