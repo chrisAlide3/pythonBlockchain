@@ -1,10 +1,14 @@
 import functools
+import hashlib #For hashing
+import json
 
 MINING_REWARD = 10
 
 genesis_block = {'previous_hash': '',
                  'index': 0,
-                 'transactions': []}
+                 'transactions': [],
+                 'proof': 100
+                 }
 blockchain = [genesis_block]
 open_transactions = []
 owner = 'Chris'
@@ -27,12 +31,52 @@ def get_transaction_values():
     # Returns a tuple
     return (tx_recipient, tx_amount)
 
+
 def verify_transaction(transaction):
     balance = get_balance(transaction['sender'])
     if balance < transaction['amount']:
         return False
     else:
         return True
+
+
+def hash_block(block):
+    #json.dumps stringifies the block dictionary in json format
+    # encode just encodes it as UTF-8
+    # the Hexdigest function at the end returns a hex value to sha256
+    return hashlib.sha256(json.dumps(block).encode()).hexdigest()
+    
+    # Example creating a string from lists using JOIN. The symbol in front is the delimiter to use
+    #return '-'.join([str(block[key]) for key in block])
+
+    # Example using comprehesion lists
+    # THIS RETURNS a LIST: hashed_block = str([last_block[key] for key in last_block])
+    # To return a string with separation use the join method
+    # hashed_block = '-'.join([str(last_block[key]) for key in last_block])
+
+    ## Example using normal For loop ##
+    # hashed_block = ''
+    # for key in last_block:
+    #     value = last_block[key]
+    #     hashed_block = hashed_block + str(value)
+    # # The block is defined as a dictionary
+    # print(hashed_block)
+
+
+def valid_proof(transactions, last_hash, proof):
+    guess = (str(transactions) + str(last_hash + str(proof))).encode()
+    guess_hash = hashlib.sha256(guess).hexdigest()
+    return guess_hash[0:2] == '00' #Returns true or false! not the guess_hash!!
+
+def proof_of_work(transactions):
+    last_block = blockchain[-1]
+    last_hash = hash_block(last_block)
+    proof = 0
+    while not valid_proof(transactions, last_hash, proof):
+        proof += 1
+    print(f"The proof number is: {proof}")
+    return proof
+    
 
 def add_transaction(recipient, sender=owner, amount=1.0):
     """Adds transactions to the open_transactions dictionary
@@ -62,6 +106,11 @@ def mine_block():
     # with '=' just copies the reference. So if we change the copied list it will also be changed in the original
     copied_open_transactions = open_transactions[:]
 
+    # We calculate the proof number without the mining reward.
+    # To validate the chain we need to remove the reward_transaction before validating it
+    proof = proof_of_work(copied_open_transactions)
+
+
     reward_transaction = {
         'sender': 'MINING',
         'recipient': owner,
@@ -71,8 +120,11 @@ def mine_block():
     copied_open_transactions.append(reward_transaction)
 
     block = {'previous_hash': hashed_block,
-             'index': len(blockchain),
-             'transactions': copied_open_transactions}
+            'index': len(blockchain),
+            'transactions': copied_open_transactions,
+            'proof': proof
+            }
+
 
     blockchain.append(block)
     return True
@@ -159,29 +211,18 @@ def get_balance(participant):
     # return balance
 
 
-def hash_block(block):
-    return '-'.join([str(block[key]) for key in block])
-
-    # Example using comprehesion lists
-    # THIS RETURNS a LIST: hashed_block = str([last_block[key] for key in last_block])
-    # To return a string with separation use the join method
-    # hashed_block = '-'.join([str(last_block[key]) for key in last_block])
-
-    ## Example using normal For loop ##
-    # hashed_block = ''
-    # for key in last_block:
-    #     value = last_block[key]
-    #     hashed_block = hashed_block + str(value)
-    # # The block is defined as a dictionary
-    # print(hashed_block)
-
-
 def verify_chain():
     # With enumerate we change the list to a Tuple so we can unpack it with idx-value pairs
     for (index, block) in enumerate(blockchain):
         if index < 1:
             continue
         if block['previous_hash'] != hash_block(blockchain[index-1]):
+            print("Previous hash is invalid!")
+            return False
+        #We remove the last transaction with the range operator [:-1]. It's the mining reward
+        #When we mine we don't include it in the proof of work
+        if not valid_proof(block['transactions'][:-1], block['previous_hash'], block['proof']):
+            print("Proof of work is invalid")
             return False
     return True
 
