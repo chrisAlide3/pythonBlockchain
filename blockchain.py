@@ -1,7 +1,8 @@
 import functools
 import hashlib  # For hashing
-import json
 from collections import OrderedDict  # to sort dictionaries
+
+from hash_utils import hash_string_256, hash_block
 
 MINING_REWARD = 10
 
@@ -41,33 +42,9 @@ def verify_transaction(transaction):
         return True
 
 
-def hash_block(block):
-    # json.dumps stringifies the block dictionary in json format
-    # We need to add sort_keys=True to make sure the dictionary is always in the same order
-        # encode just encodes it as UTF-8
-    # the Hexdigest function at the end returns a hex value to sha256
-    return hashlib.sha256(json.dumps(block, sort_keys=True).encode()).hexdigest()
-
-    # Example creating a string from lists using JOIN. The symbol in front is the delimiter to use
-    # return '-'.join([str(block[key]) for key in block])
-
-    # Example using comprehesion lists
-    # THIS RETURNS a LIST: hashed_block = str([last_block[key] for key in last_block])
-    # To return a string with separation use the join method
-    # hashed_block = '-'.join([str(last_block[key]) for key in last_block])
-
-    ## Example using normal For loop ##
-    # hashed_block = ''
-    # for key in last_block:
-    #     value = last_block[key]
-    #     hashed_block = hashed_block + str(value)
-    # # The block is defined as a dictionary
-    # print(hashed_block)
-
-
 def valid_proof(transactions, last_hash, proof):
     guess = (str(transactions) + str(last_hash + str(proof))).encode()
-    guess_hash = hashlib.sha256(guess).hexdigest()
+    guess_hash = hash_string_256(guess)
     # Returns true or false! not the guess_hash!!
     return guess_hash[0:2] == '00'
 
