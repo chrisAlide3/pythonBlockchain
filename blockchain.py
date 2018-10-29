@@ -1,11 +1,12 @@
 import functools
 import hashlib  # For hashing
-from collections import OrderedDict  # to sort dictionaries
 import json
-import pickle #binary JSON alternative
+import pickle  # binary JSON alternative
+from collections import OrderedDict  # to sort dictionaries
 
 from hash_utils import hash_string_256, hash_block
 from block import Block
+from transaction import Transaction
 
 MINING_REWARD = 10
 blockchain = []
@@ -21,12 +22,12 @@ def load_data():
     global blockchain
     global open_transactions
 
-    ## Runtime Error handling with 'try' and 'except'
+    # Runtime Error handling with 'try' and 'except'
     try:
-        ## Load from PICKLE
-        ## Better implementation of special datatypes (eg. Ordered dicts)
-        ## Cannot display the file in readable form
-        ## Switch to JSON for this course so we can read the file
+        # Load from PICKLE
+        # Better implementation of special datatypes (eg. Ordered dicts)
+        # Cannot display the file in readable form
+        # Switch to JSON for this course so we can read the file
         # with open('blockchain.p', mode='rb') as f:
         #     global blockchain
         #     global open_transactions
@@ -34,23 +35,26 @@ def load_data():
         #     blockchain = file_content['chain']
         #     open_transactions = file_content['otx']
 
-        ## Load from JSON
+        # Load from JSON
         with open('blockchain.txt', mode='r') as f:
             text_content = f.readlines()
-            ## Loading blockchain
+            # Loading blockchain
             # Range selector -1 to remove the line break
             blockchain = json.loads(text_content[0][:-1])
             # We need to alter the transaction in the block to add the ordereddic structure
             updated_blockchain = []
             for block in blockchain:
-                converted_tx = [OrderedDict(
-                        [('sender', tx['sender']),
-                        ('recipient', tx['recipient']),
-                        ('amount', tx['amount'])])
-                        for tx in block['transactions']]
+                converted_tx = [Transaction(
+                    tx['sender'], tx['recipient'], tx['amount']) for tx in block['transactions']]
+                # converted_tx = [OrderedDict(
+                #         [('sender', tx['sender']),
+                #         ('recipient', tx['recipient']),
+                #         ('amount', tx['amount'])])
+                #         for tx in block['transactions']]
 
-                updated_block = Block(block['index'], block['previous_hash'], converted_tx, block['proof'], block['timestamp'])
-                
+                updated_block = Block(
+                    block['index'], block['previous_hash'], converted_tx, block['proof'], block['timestamp'])
+
                 # updated_block = {
                 #     'previous_hash': block['previous_hash'],
                 #     'index': block['index'],
@@ -63,14 +67,16 @@ def load_data():
                 # }
                 updated_blockchain.append(updated_block)
             blockchain = updated_blockchain
-            ## Loading transactions
+            # Loading transactions
             open_transactions = json.loads(text_content[1])
             updated_transactions = []
             for tx in open_transactions:
-                updated_transaction = OrderedDict(
-                        [('sender', tx['sender']),
-                        ('recipient', tx['recipient']),
-                        ('amount', tx['amount'])])
+                updated_transaction = Transaction(
+                    tx['sender'], tx['recipient'], tx['amount'])
+                # updated_transaction = OrderedDict(
+                #         [('sender', tx['sender']),
+                #         ('recipient', tx['recipient']),
+                #         ('amount', tx['amount'])])
                 updated_transactions.append(updated_transaction)
             open_transactions = updated_transactions
     except (IOError, IndexError):
@@ -94,8 +100,8 @@ def load_data():
 
 def save_data():
     try:
-        ## Using PICKLE
-        ## In this course we switch to JSON for readble file (see load_data)
+        # Using PICKLE
+        # In this course we switch to JSON for readble file (see load_data)
         # with open('blockchain.p', mode='wb') as f:
         #     #In binary we cannot make a line break.
         #     #So we create a dictionary holding the x lists to save
@@ -107,13 +113,19 @@ def save_data():
 
         # Using JSON
         with open('blockchain.txt', mode='w') as f:
-            ##Convert block objects to dictionary. JSON doesn't know Python objects
-            saveable_blockchain = [block.__dict__ for block in blockchain]
-            f.write(json.dumps(saveable_blockchain))
+            # Convert block objects to dictionary. JSON doesn't know Python objects
+            saveable_chain = [block.__dict__ for block in
+                                   [Block(block_el.index, block_el.previous_hash,
+                                          [tx.__dict__ for tx in block_el.transactions],
+                                          block_el.proof, block_el.timestamp)
+                                    for block_el in blockchain]]
+            f.write(json.dumps(saveable_chain))
             f.write('\n')
-            f.write(json.dumps(open_transactions))
+            saveable_tx = [tx.__dict__ for tx in open_transactions]
+            f.write(json.dumps(saveable_tx))
     except IOError:
         print("Couldn't save data!")
+
 
 def get_last_blockchain_value():
     if len(blockchain) < 1:
@@ -130,15 +142,16 @@ def get_transaction_values():
 
 
 def verify_transaction(transaction):
-    balance = get_balance(transaction['sender'])
-    if balance < transaction['amount']:
+    balance = get_balance(transaction.sender)
+    if balance < transaction.amount:
         return False
     else:
         return True
 
 
 def valid_proof(transactions, last_hash, proof):
-    guess = (str(transactions) + str(last_hash + str(proof))).encode()
+    guess = (str([tx.to_ordered_dict() for tx in transactions]) +
+             str(last_hash + str(proof))).encode()
     guess_hash = hash_string_256(guess)
     # Returns true or false! not the guess_hash!!
     return guess_hash[0:2] == '00'
@@ -156,15 +169,15 @@ def proof_of_work(transactions):
 
 def get_balance(participant):
     # Sent amounts in Blockchain
-    tx_sender = [[tx['amount'] for tx in block.transactions#block['transactions']
-                  if tx['sender'] == participant] for block in blockchain]
+    tx_sender = [[tx.amount for tx in block.transactions  # block['transactions']
+                  if tx.sender == participant] for block in blockchain]
     # Sent amounts in open Transactions
-    open_tx_sender = [tx['amount']
-                      for tx in open_transactions if tx['sender'] == participant]
+    open_tx_sender = [tx.amount
+                      for tx in open_transactions if tx.sender == participant]
     tx_sender.append(open_tx_sender)
 
-    tx_recipient = [[tx['amount'] for tx in block.transactions #['transactions']
-                     if tx['recipient'] == participant] for block in blockchain]
+    tx_recipient = [[tx.amount for tx in block.transactions  # ['transactions']
+                     if tx.recipient == participant] for block in blockchain]
 
     # Calculating amount with use of reducer and lambda function
     # Reduce function has to be imported from functools.1st argument is a function, 2nd is the Listname
@@ -218,13 +231,15 @@ def add_transaction(recipient, sender=owner, amount=1.0):
     # As the order of Dictionaries can change we need to work with imported Ordereddics package
     # The order is important to us for the SHA256 hash algorithm
     # It's defined as a list of tuples
-    transaction = OrderedDict(
-        [('sender', sender), ('recipient', recipient), ('amount', amount)])
+    # transaction = OrderedDict(
+    #     [('sender', sender), ('recipient', recipient), ('amount', amount)])
+
+    transaction = Transaction(sender, recipient, amount)
 
     if verify_transaction(transaction):
         open_transactions.append(transaction)
-        participants.add(sender)
-        participants.add(recipient)
+        # participants.add(sender)
+        # participants.add(recipient)
         save_data()
         return True
     else:
@@ -245,11 +260,12 @@ def mine_block():
     # To validate the chain we need to remove the reward_transaction before validating it
     proof = proof_of_work(copied_open_transactions)
 
-    reward_transaction = OrderedDict([
-        ('sender', 'MINING'),
-        ('recipient', owner),
-        ('amount', MINING_REWARD)
-    ])
+    reward_transaction = Transaction('MINING', owner, MINING_REWARD)
+    # reward_transaction = OrderedDict([
+    #     ('sender', 'MINING'),
+    #     ('recipient', owner),
+    #     ('amount', MINING_REWARD)
+    # ])
     # reward_transaction = {
     #     'sender': 'MINING',
     #     'recipient': owner,
@@ -257,7 +273,8 @@ def mine_block():
     # }
 
     copied_open_transactions.append(reward_transaction)
-    block = Block(len(blockchain), hashed_block, copied_open_transactions, proof)
+    block = Block(len(blockchain), hashed_block,
+                  copied_open_transactions, proof)
     # block = {'previous_hash': hashed_block,
     #          'index': len(blockchain),
     #          'transactions': copied_open_transactions,
@@ -338,10 +355,11 @@ def verify_transactions():
     # verify_transaction function, which returns True or False
     return all([verify_transaction(tx) for tx in open_transactions])
 
-## Loading the blockchain and open transactions
+
+# Loading the blockchain and open transactions
 load_data()
 
-##Displaying user interface
+# Displaying user interface
 # print('Welcome {}! Your current balance is: {} coins'.format(owner, get_balance(owner)))
 waiting_for_input = True
 while waiting_for_input:
@@ -407,7 +425,8 @@ while waiting_for_input:
         press_enter_to_continue()
         break
     # Formats 6 empty spaces before the balance with 2 decimal floats
-    print("{} your actual balance is: {:6.2f} coins".format(owner, get_balance(owner)))
+    print("{} your actual balance is: {:6.2f} coins".format(
+        owner, get_balance(owner)))
 else:
     print("User has quitted!")
 

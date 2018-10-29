@@ -13,6 +13,8 @@ def hash_block(block):
 
     #We need to convert the block object to dictionary. JSON doesn't support Python Object type
     hashable_block = block.__dict__.copy()
+    #Same for the nested transaction object where we call the function to_ordered_dict
+    hashable_block['transactions'] = [tx.to_ordered_dict() for tx in hashable_block['transactions']]
     return hash_string_256(json.dumps(hashable_block, sort_keys=True).encode())
 
     # Example creating a string from lists using JOIN. The symbol in front is the delimiter to use
