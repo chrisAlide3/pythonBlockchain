@@ -10,7 +10,10 @@ def hash_block(block):
     # json.dumps stringifies the block dictionary in json format
     # We need to add sort_keys=True to make sure the dictionary is always in the same order
         # encode just encodes it as UTF-8
-    return hash_string_256(json.dumps(block, sort_keys=True).encode())
+
+    #We need to convert the block object to dictionary. JSON doesn't support Python Object type
+    hashable_block = block.__dict__.copy()
+    return hash_string_256(json.dumps(hashable_block, sort_keys=True).encode())
 
     # Example creating a string from lists using JOIN. The symbol in front is the delimiter to use
     # return '-'.join([str(block[key]) for key in block])
