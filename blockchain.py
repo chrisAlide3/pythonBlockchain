@@ -7,22 +7,19 @@ import pickle #binary JSON alternative
 from hash_utils import hash_string_256, hash_block
 
 MINING_REWARD = 10
-
-genesis_block = {'previous_hash': '',
-                 'index': 0,
-                 'transactions': [],
-                 'proof': 100
-                 }
-blockchain = [genesis_block]
+blockchain = []
 open_transactions = []
 owner = 'Chris'
-# participant = set(['Chris'])
+# owner = set(['Chris'])
 # we can define a set with {} like dictionaries without assigning key pairs. Python will know it's a set
 # sets don't allow duplicates. If a duplicate is added it just will be ignored, it doesn't throw an error
 participants = {'Chris'}
 
 
 def load_data():
+    global blockchain
+    global open_transactions
+
     ## Runtime Error handling with 'try' and 'except'
     try:
         ## Load from PICKLE
@@ -39,9 +36,6 @@ def load_data():
         ## Load from JSON
         with open('blockchain.txt', mode='r') as f:
             text_content = f.readlines()
-            global blockchain
-            global open_transactions
-
             ## Loading blockchain
             # Range selector -1 to remove the line break
             blockchain = json.loads(text_content[0][:-1])
@@ -73,31 +67,41 @@ def load_data():
             open_transactions = updated_transactions
     except IOError:
         print('File not found')
-    except ValueError:
-        print('Value Error!')
-    finally: #Always executes, if try succeed or Except errors handles. Used to cleanup
-        print('Cleanup!')
+        # Initialise Genesis block if blockchain doesn't exist
+        genesis_block = {'previous_hash': '',
+                    'index': 0,
+                    'transactions': [],
+                    'proof': 100
+                    }
+        blockchain = [genesis_block]
+        open_transactions = []
 
-load_data()
+    # except ValueError:
+    #     print('Value Error!')
+    # finally: #Always executes, if try succeed or Except errors handles. Used to cleanup
+    #     print('Cleanup!')
 
 
 def save_data():
-    ## Using PICKLE
-    ## In this course we switch to JSON for readble file (see load_data)
-    # with open('blockchain.p', mode='wb') as f:
-    #     #In binary we cannot make a line break.
-    #     #So we create a dictionary holding the x lists to save
-    #     save_data = {
-    #         'chain': blockchain,
-    #         'otx': open_transactions
-    #     }
-    #     f.write(pickle.dumps(save_data))
+    try:
+        ## Using PICKLE
+        ## In this course we switch to JSON for readble file (see load_data)
+        # with open('blockchain.p', mode='wb') as f:
+        #     #In binary we cannot make a line break.
+        #     #So we create a dictionary holding the x lists to save
+        #     save_data = {
+        #         'chain': blockchain,
+        #         'otx': open_transactions
+        #     }
+        #     f.write(pickle.dumps(save_data))
 
-    # Using JSON
-    with open('blockchain.txt', mode='w') as f:
-        f.write(json.dumps(blockchain))
-        f.write('\n')
-        f.write(json.dumps(open_transactions))
+        # Using JSON
+        with open('blockchain.txt', mode='w') as f:
+            f.write(json.dumps(blockchain))
+            f.write('\n')
+            f.write(json.dumps(open_transactions))
+    except IOError:
+        print("Couldn't save data!")
 
 def get_last_blockchain_value():
     if len(blockchain) < 1:
@@ -323,7 +327,10 @@ def verify_transactions():
     # verify_transaction function, which returns True or False
     return all([verify_transaction(tx) for tx in open_transactions])
 
+## Loading the blockchain and open transactions
+load_data()
 
+##Displaying user interface
 waiting_for_input = True
 while waiting_for_input:
     display_choices()
