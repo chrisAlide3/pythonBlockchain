@@ -15,7 +15,6 @@ owner = 'Chris'
 # owner = set(['Chris'])
 # we can define a set with {} like dictionaries without assigning key pairs. Python will know it's a set
 # sets don't allow duplicates. If a duplicate is added it just will be ignored, it doesn't throw an error
-participants = {'Chris'}
 
 
 def load_data():
@@ -238,8 +237,6 @@ def add_transaction(recipient, sender=owner, amount=1.0):
 
     if verify_transaction(transaction):
         open_transactions.append(transaction)
-        participants.add(sender)
-        participants.add(recipient)
         save_data()
         return True
     else:
@@ -294,9 +291,8 @@ def display_choices():
     print("1: Enter new transaction")
     print("2: Output blocks")
     print("3: Mine block")
-    print("4: Show participants of the network")
-    print("5: Show Balance of participant")
-    print("6: Check transactions validity")
+    print("4: Show Balance of participant")
+    print("5: Check transactions validity")
     print("v: Verify blockchain")
     print("x: Exit")
 
@@ -392,17 +388,13 @@ while waiting_for_input:
         press_enter_to_continue()
 
     elif selected_choice == '4':
-        print(participants)
-        press_enter_to_continue()
-
-    elif selected_choice == '5':
         participant = input("Enter name for balance: ")
         print("The balance of {} is: {:6.2f} coins".format(
             participant, get_balance(participant)))
         print("-" * 30)
         press_enter_to_continue()
 
-    elif selected_choice == '6':
+    elif selected_choice == '5':
         if verify_transactions():
             print("All transactions are valid!")
         else:
