@@ -2,7 +2,7 @@ import functools
 import hashlib  # For hashing
 import json
 import pickle  # binary JSON alternative
-from collections import OrderedDict  # to sort dictionaries
+# from collections import OrderedDict  # to sort dictionaries
 
 from hash_utils import hash_string_256, hash_block
 from block import Block
@@ -238,8 +238,8 @@ def add_transaction(recipient, sender=owner, amount=1.0):
 
     if verify_transaction(transaction):
         open_transactions.append(transaction)
-        # participants.add(sender)
-        # participants.add(recipient)
+        participants.add(sender)
+        participants.add(recipient)
         save_data()
         return True
     else:
@@ -360,7 +360,7 @@ def verify_transactions():
 load_data()
 
 # Displaying user interface
-# print('Welcome {}! Your current balance is: {} coins'.format(owner, get_balance(owner)))
+print('Welcome {}! Your current balance is: {} coins'.format(owner, get_balance(owner)))
 waiting_for_input = True
 while waiting_for_input:
     display_choices()
