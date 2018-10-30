@@ -45,25 +45,10 @@ def load_data():
             for block in blockchain:
                 converted_tx = [Transaction(
                     tx['sender'], tx['recipient'], tx['amount']) for tx in block['transactions']]
-                # converted_tx = [OrderedDict(
-                #         [('sender', tx['sender']),
-                #         ('recipient', tx['recipient']),
-                #         ('amount', tx['amount'])])
-                #         for tx in block['transactions']]
 
                 updated_block = Block(
                     block['index'], block['previous_hash'], converted_tx, block['proof'], block['timestamp'])
 
-                # updated_block = {
-                #     'previous_hash': block['previous_hash'],
-                #     'index': block['index'],
-                #     'proof': block['proof'],
-                #     'transactions': [OrderedDict(
-                #         [('sender', tx['sender']),
-                #         ('recipient', tx['recipient']),
-                #         ('amount', tx['amount'])])
-                #         for tx in block['transactions']]
-                # }
                 updated_blockchain.append(updated_block)
             blockchain = updated_blockchain
             # Loading transactions
@@ -72,22 +57,12 @@ def load_data():
             for tx in open_transactions:
                 updated_transaction = Transaction(
                     tx['sender'], tx['recipient'], tx['amount'])
-                # updated_transaction = OrderedDict(
-                #         [('sender', tx['sender']),
-                #         ('recipient', tx['recipient']),
-                #         ('amount', tx['amount'])])
                 updated_transactions.append(updated_transaction)
             open_transactions = updated_transactions
     except (IOError, IndexError):
         print('File not found')
         # Initialise Genesis block if blockchain doesn't exist
         genesis_block = Block(0, '', [], 100, 0)
-
-        # genesis_block = {'previous_hash': '',
-        #             'index': 0,
-        #             'transactions': [],
-        #             'proof': 100
-        #             }
         blockchain = [genesis_block]
         open_transactions = []
 
@@ -258,26 +233,10 @@ def mine_block():
     proof = proof_of_work(copied_open_transactions)
 
     reward_transaction = Transaction('MINING', owner, MINING_REWARD)
-    # reward_transaction = OrderedDict([
-    #     ('sender', 'MINING'),
-    #     ('recipient', owner),
-    #     ('amount', MINING_REWARD)
-    # ])
-    # reward_transaction = {
-    #     'sender': 'MINING',
-    #     'recipient': owner,
-    #     'amount': MINING_REWARD
-    # }
 
     copied_open_transactions.append(reward_transaction)
     block = Block(len(blockchain), hashed_block,
                   copied_open_transactions, proof)
-    # block = {'previous_hash': hashed_block,
-    #          'index': len(blockchain),
-    #          'transactions': copied_open_transactions,
-    #          'proof': proof
-    #          }
-
     blockchain.append(block)
     return True
 
