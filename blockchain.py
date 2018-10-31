@@ -22,9 +22,36 @@ class Blockchain:
         genesis_block = Block(0, '', [], 100, 0)
         #Initialize our blockchain list
         self.chain = [genesis_block]
-        self.open_transactions = []
+        # Note '__' double underscore in attribute name define them as private, they cannot be changed from outside this class
+        self.__open_transactions = []
         self.load_data()
         self.hosting_node = hosting_node_id
+
+
+    @property #defines a getter for this attribute
+    # The method name has to be the name of the attribute we want to make the getter. 
+    # Python will automatically make it private. So in the getter function we need to refer it with '__' double underscore
+    # From outside the getter function we can acces it with the normal attribute name
+    def chain(self):
+        return self.__chain[:]
+
+    @chain.setter #defines setter method for this attribute. the name before the .setter has to be the attribute name
+    # The method name has to be the name of the attribute we want to make the setter. 
+    # Python will automatically make it private. So in the setter function we need to refer it with '__' double underscore
+    # From outside the getter function we can acces it with the normal attribute name
+    # The 2 arguments self and val are passed automatically by python
+    def chain(self, val):
+        self.__chain = val
+
+    # Not needed anymore. We handle it with the getter function above
+    # def get_chain(self):
+    #     ## Note, with the range selector all [:] we return a copy of the chain, not the chain itself
+    #     return self.__chain[:]
+
+
+    def get_open_transactions(self):
+        ## Note, with the range selector all [:] we return a copy of the open_transactions, not the transactions themselves
+        return self.__open_transactions[:]
 
 
     def load_data(self):
@@ -57,7 +84,7 @@ class Blockchain:
                         block['index'], block['previous_hash'], converted_tx, block['proof'], block['timestamp'])
 
                     updated_blockchain.append(updated_block)
-                self.chain = updated_blockchain
+                self.chain = updated_blockchain #will trigger the setter method defined for the chain attribute
                 # Loading transactions
                 open_transactions = json.loads(text_content[1])
                 updated_transactions = []
@@ -65,7 +92,7 @@ class Blockchain:
                     updated_transaction = Transaction(
                         tx['sender'], tx['recipient'], tx['amount'])
                     updated_transactions.append(updated_transaction)
-                self.open_transactions = updated_transactions
+                self.__open_transactions = updated_transactions
         except (IOError, IndexError):
             print('File not found')
         # except ValueError:
@@ -94,44 +121,43 @@ class Blockchain:
                                     [Block(block_el.index, block_el.previous_hash,
                                             [tx.__dict__ for tx in block_el.transactions],
                                             block_el.proof, block_el.timestamp)
-                                        for block_el in self.chain]]
+                                        for block_el in self.__chain]]
                 f.write(json.dumps(saveable_chain))
                 f.write('\n')
-                saveable_tx = [tx.__dict__ for tx in self.open_transactions]
+                saveable_tx = [tx.__dict__ for tx in self.__open_transactions]
                 f.write(json.dumps(saveable_tx))
         except IOError:
             print("Couldn't save data!")
 
 
     def proof_of_work(self):
-        last_block = self.chain[-1]
+        last_block = self.__chain[-1]
         last_hash = hash_block(last_block)
         proof = 0
-        verifier = Verification()
-        while not verifier.valid_proof(self.open_transactions, last_hash, proof):
+        while not Verification.valid_proof(self.__open_transactions, last_hash, proof):
             proof += 1
         print(f"The proof number is: {proof}")
         return proof
 
 
     def get_last_blockchain_value(self):
-        if len(self.chain) < 1:
+        if len(self.__chain) < 1:
             return None
 
-        return self.chain[-1]
+        return self.__chain[-1]
 
 
     def get_balance(self, participant):
         # Sent amounts in Blockchain
         tx_sender = [[tx.amount for tx in block.transactions  # block['transactions']
-                    if tx.sender == participant] for block in self.chain]
+                    if tx.sender == participant] for block in self.__chain]
         # Sent amounts in open Transactions
         open_tx_sender = [tx.amount
-                        for tx in self.open_transactions if tx.sender == participant]
+                        for tx in self.__open_transactions if tx.sender == participant]
         tx_sender.append(open_tx_sender)
 
         tx_recipient = [[tx.amount for tx in block.transactions  # ['transactions']
-                        if tx.recipient == participant] for block in self.chain]
+                        if tx.recipient == participant] for block in self.__chain]
 
         # Calculating amount with use of reducer and lambda function
         # Reduce function has to be imported from functools.1st argument is a function, 2nd is the Listname
@@ -189,9 +215,8 @@ class Blockchain:
         #     [('sender', sender), ('recipient', recipient), ('amount', amount)])
 
         transaction = Transaction(sender, recipient, amount)
-        verifier = Verification()
-        if verifier.verify_transaction(transaction, self.get_balance):
-            self.open_transactions.append(transaction)
+        if Verification.verify_transaction(transaction, self.get_balance):
+            self.__open_transactions.append(transaction)
             self.save_data()
             return True
         else:
@@ -200,13 +225,13 @@ class Blockchain:
 
     def mine_block(self):
         # index [-1] accesses the last block of the chain
-        last_block = self.chain[-1]
+        last_block = self.__chain[-1]
 
         hashed_block = hash_block(last_block)
         # We copy the list open_transaction with the ':' range selector to copy the whole list
         # In complex objects like lists,tuples,sets,dictionary just assigning a new value
         # with '=' just copies the reference. So if we change the copied list it will also be changed in the original
-        copied_open_transactions = self.open_transactions[:]
+        copied_open_transactions = self.__open_transactions[:]
 
         # We calculate the proof number without the mining reward.
         # To validate the chain we need to remove the reward_transaction before validating it
@@ -215,10 +240,10 @@ class Blockchain:
         reward_transaction = Transaction('MINING', self.hosting_node, MINING_REWARD)
 
         copied_open_transactions.append(reward_transaction)
-        block = Block(len(self.chain), hashed_block,
+        block = Block(len(self.__chain), hashed_block,
                     copied_open_transactions, proof)
-        self.chain.append(block)
+        self.__chain.append(block)
         #Empty open transaction files and save the datas
-        self.open_transactions = []
+        self.__open_transactions = []
         self.save_data()
         return True

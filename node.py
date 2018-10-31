@@ -14,7 +14,7 @@ class Node(Blockchain):
 
     def listen_for_input(self):
         # Displaying user interface
-        print('Welcome {}! Your current balance is: {} coins'.format(self.id, self.blockchain.get_balance(self.id)))
+        print('Welcome {}! Your current balance is: {:6.2f} coins'.format(self.id, self.blockchain.get_balance(self.id)))
         waiting_for_input = True
         while waiting_for_input:
             print("Please choose")
@@ -59,16 +59,14 @@ class Node(Blockchain):
                 self.press_enter_to_continue()
 
             elif selected_choice == '5':
-                verifier = Verification()
-                if verifier.verify_transactions(self.blockchain.open_transactions, self.blockchain.get_balance):
+                if Verification.verify_transactions(self.blockchain.get_open_transactions(), self.blockchain.get_balance):
                     print("All transactions are valid!")
                 else:
                     print("Some transactions are not valid!")
 
             elif selected_choice == 'v':
-                verifier = Verification()
                 self.print_blockchain_elements()
-                print("Chain Valid: " + str(verifier.verify_chain(self.blockchain.chain)))
+                print("Chain Valid: " + str(Verification.verify_chain(self.blockchain.chain))) #blockchain.chain will trigger the getter function in the blockchain class
                 self.press_enter_to_continue()
 
             elif selected_choice == 'x':
@@ -77,8 +75,7 @@ class Node(Blockchain):
             else:
                 print("Invalid choice! Try again")
 
-            verifier = Verification()
-            if not verifier.verify_chain(self.blockchain.chain):
+            if not Verification.verify_chain(self.blockchain.chain): #blockchain.chain will trigger the getter function in the blockchain class
                 self.print_blockchain_elements()
                 print("Invalid blockchain!!")
                 self.press_enter_to_continue()
@@ -101,14 +98,11 @@ class Node(Blockchain):
 
 
     def print_blockchain_elements(self):
-        if len(self.blockchain.chain) < 1:
-            print("This blockchain is empty!")
+        for block in self.blockchain.chain: #blockchain.chain will trigger the getter function in the blockchain class
+            print("Outputting block")
+            print(block)
         else:
-            for block in self.blockchain.chain:
-                print("Outputting block")
-                print(block)
-            else:
-                print("-" * 30)
+            print("-" * 30)
 
     def get_transaction_values(self):
         tx_recipient = input('Please enter the receipient of the transaction: ')

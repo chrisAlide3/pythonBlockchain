@@ -1,8 +1,10 @@
 from hash_utils import hash_string_256, hash_block
 
 class Verification:
-
-    def valid_proof(self, transactions, last_hash, proof):
+    # staticmethod is used for functions who don't need to access any other attribute or method in the same class
+    # !! Note the first argument 'self' HAS to be ommited !!
+    @staticmethod
+    def valid_proof(transactions, last_hash, proof):
         guess = (str([tx.to_ordered_dict() for tx in transactions]) +
                 str(last_hash + str(proof))).encode()
         guess_hash = hash_string_256(guess)
@@ -10,7 +12,11 @@ class Verification:
         return guess_hash[0:2] == '00'
 
 
-    def verify_chain(self, blockchain):
+    # classmethod is used for funtions who don't need access to any attributes in the class
+    # but need access to other methods in that class
+    # !! The 'self' argument has to be replaced with 'cls' argument
+    @classmethod
+    def verify_chain(cls, blockchain):
         # With enumerate we change the list to a Tuple so we can unpack it with idx-value pairs
         for (index, block) in enumerate(blockchain):
             if index < 1:
@@ -20,13 +26,14 @@ class Verification:
                 return False
             # We remove the last transaction with the range operator [:-1]. It's the mining reward
             # When we mine we don't include it in the proof of work
-            if not self.valid_proof(block.transactions[:-1], block.previous_hash, block.proof):
+            if not cls.valid_proof(block.transactions[:-1], block.previous_hash, block.proof):
                 print("Proof of work is invalid")
                 return False
         return True
 
 
-    def verify_transaction(self, transaction, get_balance):
+    @staticmethod
+    def verify_transaction(transaction, get_balance):
         balance = get_balance(transaction.sender)
         if balance < transaction.amount:
             return False
@@ -34,11 +41,10 @@ class Verification:
             return True
 
 
-    def verify_transactions(self, open_transactions, get_balance):
+    @classmethod
+    def verify_transactions(cls, open_transactions, get_balance):
         # The all keyword checks if returned list of ALL booleans are True
         # If its the case it returns True, if not it returns False
         # Here we verify each transactions from open_transactions and run the
         # verify_transaction function, which returns True or False
-        return all([self.verify_transaction(tx, get_balance) for tx in open_transactions])
-
-
+        return all([cls.verify_transaction(tx, get_balance) for tx in open_transactions])
