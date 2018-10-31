@@ -3,18 +3,23 @@ from uuid import uuid4
 
 from blockchain import Blockchain
 from utility.verification import Verification
+from wallet import Wallet
 
 class Node(Blockchain):
 
     def __init__(self):
-        self.id = 'Chris'
-        # self.id = str(uuid4())
-        self.blockchain = Blockchain(self.id)
+        self.wallet = Wallet()
+        self.wallet.create_keys()
+        self.blockchain = Blockchain(self.wallet.public_key)
 
 
     def listen_for_input(self):
         # Displaying user interface
-        print('Welcome {}! Your current balance is: {:6.2f} coins'.format(self.id, self.blockchain.get_balance(self.id)))
+        if self.wallet.public_key == None:
+            print("No wallet detected! Please create or load the wallet!")
+        else:
+            print('Welcome {}! Your current balance is: {:6.2f} coins'.format(self.wallet.public_key, self.blockchain.get_balance(self.wallet.public_key)))
+        
         waiting_for_input = True
         while waiting_for_input:
             print("Please choose")
@@ -23,6 +28,9 @@ class Node(Blockchain):
             print("3: Output blocks")
             print("4: Show Balance of participant")
             print("5: Check transactions validity")
+            print("6: Create wallet")
+            print("7: Load wallet")
+            print("8: Save keys")
             print("v: Verify blockchain")
             print("x: Exit")
 
@@ -33,10 +41,10 @@ class Node(Blockchain):
                 # unpacking the returned tuple
                 recipient, amount = tx_data
                 # if add_transaction(recipient, amount=amount):
-                if self.blockchain.add_transaction(recipient, self.id, amount):
+                if self.blockchain.add_transaction(recipient, self.wallet.public_key, amount):
                     print('Transaction completed succesfully!')
                 else:
-                    print("Insufficient funds for this transaction!")
+                    print("Insufficient funds or no wallet for this transaction!")
 
                 self.press_enter_to_continue()
 
@@ -44,7 +52,7 @@ class Node(Blockchain):
                 if self.blockchain.mine_block():
                     print("Block mined succesfully!")
                 else:
-                    print("Error mining block! Try again")
+                    print("Error mining block! No wallet?")
                 self.press_enter_to_continue()
 
             elif selected_choice == '3':
@@ -64,6 +72,17 @@ class Node(Blockchain):
                 else:
                     print("Some transactions are not valid!")
 
+            elif selected_choice == '6':
+                self.wallet.create_keys()
+                self.blockchain = Blockchain(self.wallet.public_key)
+
+            elif selected_choice == '7':
+                self.wallet.load_keys()
+                self.blockchain = Blockchain(self.wallet.public_key)
+
+            elif selected_choice == '8':
+                self.wallet.save_keys()
+
             elif selected_choice == 'v':
                 self.print_blockchain_elements()
                 print("Chain Valid: " + str(Verification.verify_chain(self.blockchain.chain))) #blockchain.chain will trigger the getter function in the blockchain class
@@ -82,7 +101,7 @@ class Node(Blockchain):
                 break
             # Formats 6 empty spaces before the balance with 2 decimal floats
             print("{} your actual balance is: {:6.2f} coins".format(
-                self.id, self.blockchain.get_balance(self.id)))
+                self.wallet.public_key, self.blockchain.get_balance(self.wallet.public_key)))
         else:
             print("User has quitted!")
 

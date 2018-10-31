@@ -218,6 +218,10 @@ class Blockchain:
         # transaction = OrderedDict(
         #     [('sender', sender), ('recipient', recipient), ('amount', amount)])
 
+        # prevent adding transaction when no wallet loaded
+        if self.hosting_node == None:
+            return False
+
         transaction = Transaction(sender, recipient, amount)
         if Verification.verify_transaction(transaction, self.get_balance):
             self.__open_transactions.append(transaction)
@@ -228,6 +232,10 @@ class Blockchain:
 
 
     def mine_block(self):
+        # prevent adding transaction when no wallet loaded
+        if self.hosting_node == None:
+            return False
+
         # index [-1] accesses the last block of the chain
         last_block = self.__chain[-1]
 
