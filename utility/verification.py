@@ -1,4 +1,4 @@
-from hash_utils import hash_string_256, hash_block
+from utility.hash_utils import hash_string_256, hash_block
 
 class Verification:
     # staticmethod is used for functions who don't need to access any other attribute or method in the same class

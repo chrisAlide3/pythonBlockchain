@@ -4,10 +4,14 @@ import json
 import pickle  # binary JSON alternative
 # from collections import OrderedDict  # to sort dictionaries
 
-from hash_utils import hash_block
+
+# from utility is a folder. with the empty file __init__.py all the other files are bundled. 
+# so we can import 'from folderName.fileName import className or functionName
+from utility.hash_utils import hash_block
+from utility.verification import Verification
+
 from block import Block
 from transaction import Transaction
-from verification import Verification
 
 MINING_REWARD = 10
 # owner = set(['Chris'])

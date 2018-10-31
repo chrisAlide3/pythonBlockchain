@@ -1,7 +1,7 @@
 from collections import OrderedDict  # to sort dictionaries
 
 #Importing Printable class, then pass it to Transaction class for inheritence
-from printable import Printable
+from utility.printable import Printable
 
 
 class Transaction(Printable):
