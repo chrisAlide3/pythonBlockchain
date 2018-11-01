@@ -1,6 +1,7 @@
 """Provides verification helper methods"""
 
 from utility.hash_utils import hash_string_256, hash_block
+from wallet import Wallet
 
 class Verification:
     # staticmethod is used for functions who don't need to access any other attribute or method in the same class
@@ -35,12 +36,12 @@ class Verification:
 
 
     @staticmethod
-    def verify_transaction(transaction, get_balance):
-        balance = get_balance(transaction.sender)
-        if balance < transaction.amount:
-            return False
+    def verify_transaction(transaction, get_balance, check_funds=True):
+        if check_funds:
+            balance_sender = get_balance(transaction.sender)
+            return balance_sender >= transaction.amount and Wallet.verify_transaction_signature(transaction)
         else:
-            return True
+            return Wallet.verify_transaction_signature(transaction)
 
 
     @classmethod
@@ -49,4 +50,4 @@ class Verification:
         # If its the case it returns True, if not it returns False
         # Here we verify each transactions from open_transactions and run the
         # verify_transaction function, which returns True or False
-        return all([cls.verify_transaction(tx, get_balance) for tx in open_transactions])
+        return all([cls.verify_transaction(tx, get_balance, False) for tx in open_transactions])

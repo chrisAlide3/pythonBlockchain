@@ -41,7 +41,8 @@ class Node(Blockchain):
                 # unpacking the returned tuple
                 recipient, amount = tx_data
                 # if add_transaction(recipient, amount=amount):
-                if self.blockchain.add_transaction(recipient, self.wallet.public_key, amount):
+                signature = self.wallet.sign_transaction(self.wallet.public_key, recipient, amount)
+                if self.blockchain.add_transaction(recipient, self.wallet.public_key, signature, amount):
                     print('Transaction completed succesfully!')
                 else:
                     print("Insufficient funds or no wallet for this transaction!")
@@ -130,7 +131,9 @@ class Node(Blockchain):
         return (tx_recipient, tx_amount)
 
 
-# We instanciate the new node from the Node class
-# Then run the function 'listen_for_input
-node = Node()
-node.listen_for_input()
+# Only run the app when it is called directly. Avoids the code to run if imported into other Python apps
+if __name__ == '__main__':
+    # We instanciate the new node from the Node class
+    # Then run the function 'listen_for_input
+    node = Node()
+    node.listen_for_input()

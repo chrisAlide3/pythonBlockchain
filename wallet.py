@@ -1,4 +1,6 @@
 from Crypto.PublicKey import RSA
+from Crypto.Signature import PKCS1_v1_5
+from Crypto.Hash import SHA256
 import Crypto.Random
 import binascii
 
@@ -6,6 +8,14 @@ class Wallet:
     def __init__(self):
         self.private_key = None
         self.public_key = None
+
+
+    def generate_keys(self):
+        private_key = RSA.generate(1024, Crypto.Random.new().read)
+        public_key = private_key.publickey()
+        #returning tuple of hexlyfied private and public key
+        return (binascii.hexlify(private_key.exportKey(format='DER')).decode('ascii'), 
+                binascii.hexlify(public_key.exportKey(format='DER')).decode('ascii'))
 
 
     def create_keys(self):
@@ -37,10 +47,22 @@ class Wallet:
         except(IOError, IndexError):
             print("Loading wallet failed...")
 
-    def generate_keys(self):
-        private_key = RSA.generate(1024, Crypto.Random.new().read)
-        public_key = private_key.publickey()
-        #returning tuple of hexlyfied private and public key
-        return (binascii.hexlify(private_key.exportKey(format='DER')).decode('ascii'), 
-                binascii.hexlify(public_key.exportKey(format='DER')).decode('ascii'))
     
+    def sign_transaction(self, sender, recipient, amount):
+        #importing our private_key. we need binary format so we need to unhexlify it first
+        signer = PKCS1_v1_5.new(RSA.importKey(binascii.unhexlify(self.private_key)))
+        hashed_transaction = SHA256.new((str(sender) + str(recipient) + str(amount)).encode('utf8'))
+        signature = signer.sign(hashed_transaction)
+
+        return binascii.hexlify(signature).decode('ascii')
+
+    @staticmethod
+    def verify_transaction_signature(transaction):
+        #transform public_key to binary
+        public_key = RSA.importKey(binascii.unhexlify(transaction.sender))
+        verifier = PKCS1_v1_5.new(public_key)
+        hashed_transaction = SHA256.new((str(transaction.sender) + str(transaction.recipient) + str(transaction.amount)).encode('utf8'))
+
+        return verifier.verify(hashed_transaction, binascii.unhexlify(transaction.signature))
+
+
