@@ -152,7 +152,11 @@ class Blockchain:
         return self.__chain[-1]
 
 
-    def get_balance(self, participant):
+    def get_balance(self):
+        if self.hosting_node == None:
+            return None
+
+        participant = self.hosting_node
         # Sent amounts in Blockchain
         tx_sender = [[tx.amount for tx in block.transactions  # block['transactions']
                     if tx.sender == participant] for block in self.__chain]
@@ -236,7 +240,7 @@ class Blockchain:
     def mine_block(self):
         # prevent adding transaction when no wallet loaded
         if self.hosting_node == None:
-            return False
+            return None
 
         # index [-1] accesses the last block of the chain
         last_block = self.__chain[-1]
@@ -255,7 +259,7 @@ class Blockchain:
         #this is done without the MINING transaction
         for tx in copied_open_transactions:
             if not Wallet.verify_transaction_signature(tx):
-                return False
+                return None
 
         reward_transaction = Transaction('MINING', self.hosting_node, MINING_REWARD, '')
         copied_open_transactions.append(reward_transaction)
@@ -266,4 +270,4 @@ class Blockchain:
         #Empty open transaction files and save the datas
         self.__open_transactions = []
         self.save_data()
-        return True
+        return block
