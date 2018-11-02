@@ -226,15 +226,15 @@ class Blockchain:
 
         # prevent adding transaction when no wallet loaded
         if self.hosting_node == None:
-            return False
+            return None
 
         transaction = Transaction(sender, recipient, amount, signature)
         if Verification.verify_transaction(transaction, self.get_balance):
             self.__open_transactions.append(transaction)
             self.save_data()
-            return True
+            return transaction
         else:
-            return False
+            return None
 
 
     def mine_block(self):

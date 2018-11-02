@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 #flask-cors allows clients from other servers to access this server
 from flask_cors import CORS 
 
@@ -93,6 +93,49 @@ def mine_block():
         return jsonify(response), 500
 
 
+@app.route('/transaction', methods=['POST'])
+def add_route():
+    #Send error and abort if no wallet loaded
+    if wallet.public_key == None:
+        response = {
+            'message': 'No wallet loaded!'
+        }
+        return jsonify(response), 400
+
+    values = request.get_json()
+    #Error if no arguments submitted
+    if not values:
+        response = {
+            'message': 'No data submitted'
+        }
+        return jsonify(response), 400
+    #Error if expected fields are not submitted
+    required_fields = ['recipient', 'amount']
+    if not all(field in values for field in required_fields):
+        response = {
+            'message': 'Some expected data are missing'
+        }
+        return jsonify(response), 400
+
+    recipient = values['recipient']
+    amount = values['amount']
+    signature = wallet.sign_transaction(wallet.public_key, recipient, amount)
+    tx = blockchain.add_transaction(recipient, wallet.public_key, signature, amount)
+    if tx != None:
+        tx = tx.__dict__
+        response = {
+            'message': 'Transaction added successfully',
+            'transaction': tx,
+            'funds': blockchain.get_balance()
+        }
+        return jsonify(response), 201
+    else:
+        response = {
+            'message': 'Error adding transaction'
+        }
+        return jsonify(response), 500
+
+
 @app.route('/chain', methods=['GET'])
 def get_chain():
     chain_snapshot = blockchain.chain
@@ -103,6 +146,17 @@ def get_chain():
         dict_block['transactions'] = [tx.__dict__ for tx in dict_block['transactions']]
 
     return jsonify(dict_chain), 200
+
+@app.route('/transactions', methods=['GET'])
+def get_open_transactions():
+    open_transactions = [tx.__dict__ for tx in blockchain.get_open_transactions()]
+    # open_transactions = open_transactions.__dict__
+    response = {
+        'message': 'Fetched transactions succesfully',
+        'open_transactions': open_transactions
+    }
+    return jsonify(response), 201
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
