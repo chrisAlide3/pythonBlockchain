@@ -50,7 +50,8 @@ def load_keys():
             'public_key': wallet.public_key,
             'funds': blockchain.get_balance()
         }
-        return jsonify(response, 201)
+
+        return jsonify(response), 201
     else:
         response = {
             'message': 'Error loading wallet'
