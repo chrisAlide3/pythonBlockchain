@@ -1,4 +1,7 @@
-from flask import Flask, jsonify, request
+# JSONIFY helper to convert responses to JSON
+# REQUEST helper to manage JSON arguments
+# SEND_FROM_DIRECTORY allows to display an HTML page (Arguments: directory, file_name)
+from flask import Flask, jsonify, request, send_from_directory
 #flask-cors allows clients from other servers to access this server
 from flask_cors import CORS 
 
@@ -13,7 +16,7 @@ CORS(app)
 
 @app.route('/', methods=['GET'])
 def get_ui():
-    return 'This works!'
+    return send_from_directory('ui', 'node.html')
 
 
 @app.route('/wallet', methods=['POST'])
@@ -147,15 +150,12 @@ def get_chain():
 
     return jsonify(dict_chain), 200
 
+
 @app.route('/transactions', methods=['GET'])
 def get_open_transactions():
-    open_transactions = [tx.__dict__ for tx in blockchain.get_open_transactions()]
-    # open_transactions = open_transactions.__dict__
-    response = {
-        'message': 'Fetched transactions succesfully',
-        'open_transactions': open_transactions
-    }
-    return jsonify(response), 201
+    open_transactions = blockchain.get_open_transactions()
+    dict_transactions = [tx.__dict__ for tx in open_transactions]
+    return jsonify(dict_transactions), 201
 
 
 if __name__ == '__main__':
