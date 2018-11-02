@@ -98,7 +98,7 @@ def mine_block():
 
 
 @app.route('/transaction', methods=['POST'])
-def add_route():
+def add_transaction():
     #Send error and abort if no wallet loaded
     if wallet.public_key == None:
         response = {
