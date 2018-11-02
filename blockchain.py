@@ -29,6 +29,8 @@ class Blockchain:
         self.chain = [genesis_block]
         # Note '__' double underscore in attribute name define them as private, they cannot be changed from outside this class
         self.__open_transactions = []
+        #Initialising peer_node as empty set. A set doesn't keep duplicate values, but doesn't throw error. It just doesn't add the duplicate
+        self.__peer_nodes = set()
         self.load_data()
         self.hosting_node = hosting_node_id
 
@@ -91,13 +93,16 @@ class Blockchain:
                     updated_blockchain.append(updated_block)
                 self.chain = updated_blockchain #will trigger the setter method defined for the chain attribute
                 # Loading transactions
-                open_transactions = json.loads(text_content[1])
+                open_transactions = json.loads(text_content[1][:-1])
                 updated_transactions = []
                 for tx in open_transactions:
                     updated_transaction = Transaction(
                         tx['sender'], tx['recipient'], tx['amount'], tx['signature'])
                     updated_transactions.append(updated_transaction)
                 self.__open_transactions = updated_transactions
+                # Loading peer nodes
+                peer_nodes = json.loads(text_content[2])
+                self.__peer_nodes = set(peer_nodes)
         except (IOError, IndexError):
             print('File not found')
         # except ValueError:
@@ -131,6 +136,8 @@ class Blockchain:
                 f.write('\n')
                 saveable_tx = [tx.__dict__ for tx in self.__open_transactions]
                 f.write(json.dumps(saveable_tx))
+                f.write('\n')
+                f.write(json.dumps(list(self.__peer_nodes)))
         except IOError:
             print("Couldn't save data!")
 
@@ -271,3 +278,26 @@ class Blockchain:
         self.__open_transactions = []
         self.save_data()
         return block
+
+
+    def add_peer_node(self, node):
+        """Adds new node to the peer_node_set
+            Arguments:
+                :node: the URL of the node that should be added
+        """
+        self.__peer_nodes.add(node)
+        self.save_data()
+
+
+    def remove_peer_node(self, node):
+            """removes node from the peer_node_set
+                Arguments:
+                    :node: the URL of the node that should be removed
+            """
+            self.__peer_nodes.discard(node)
+            self.save_data()
+
+
+    def get_peer_nodes(self):
+        #returns a copy of the peer_nodes
+        return list(self.__peer_nodes)

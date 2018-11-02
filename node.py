@@ -15,8 +15,12 @@ blockchain = Blockchain(wallet.public_key)
 CORS(app)
 
 @app.route('/', methods=['GET'])
-def get_ui():
+def get_node_ui():
     return send_from_directory('ui', 'node.html')
+
+@app.route('/network', methods=['GET'])
+def get_network_ui():
+    return send_from_directory('ui', 'network.html')
 
 
 @app.route('/wallet', methods=['POST'])
@@ -158,6 +162,56 @@ def get_open_transactions():
     dict_transactions = [tx.__dict__ for tx in open_transactions]
     return jsonify(dict_transactions), 201
 
+
+@app.route('/node', methods=['POST'])
+def add_node():
+    values = request.get_json()
+    if not values:
+        response = {
+            'message': 'No data attached'
+        }
+        return jsonify(response), 400
+
+    if 'node' not in values:
+        response = {
+            'message': 'Expected node is empty'
+        }
+        return jsonify(response), 400
+    else:
+        blockchain.add_peer_node(values['node'])
+        response = {
+            'message': 'Node added to peer',
+            'peer_nodes': blockchain.get_peer_nodes()
+        }
+        return jsonify(response), 201
+
+
+#we pass the argument in the path with <attribute_name>
+#than take it as argument in the function itself
+@app.route('/node/<node_url>', methods=['DELETE'])
+def remove_node(node_url):
+    if node_url == None or node_url == '':
+        response = {
+            'message': 'Expected node is empty'
+        }
+        return jsonify(response), 400
+    else:
+        blockchain.remove_peer_node(node_url)
+        response = {
+            'message': 'Node removed from peer',
+            'peer_nodes': blockchain.get_peer_nodes()
+        }
+        return jsonify(response), 201
+
+
+@app.route('/nodes', methods=['GET'])
+def get_nodes():
+    nodes = blockchain.get_peer_nodes()
+    response = {
+        'message': 'Nodes loaded',
+        'nodes': nodes
+    }
+    return jsonify(response), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
