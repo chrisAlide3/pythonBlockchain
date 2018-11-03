@@ -22,7 +22,7 @@ MINING_REWARD = 10
 # Will be passed from the node owner = 'Chris'
 
 class Blockchain:
-    def __init__(self, hosting_node_id):
+    def __init__(self, public_key, node_id): #node_id for developpment only. Remove for production
         # Our starting block
         genesis_block = Block(0, '', [], 100, 0)
         #Initialize our blockchain list
@@ -31,8 +31,9 @@ class Blockchain:
         self.__open_transactions = []
         #Initialising peer_node as empty set. A set doesn't keep duplicate values, but doesn't throw error. It just doesn't add the duplicate
         self.__peer_nodes = set()
+        self.public_key = public_key
+        self.node_id = node_id #node_id for developpment only. Remove for production
         self.load_data()
-        self.hosting_node = hosting_node_id
 
 
     @property #defines a getter for this attribute
@@ -76,7 +77,7 @@ class Blockchain:
             #     open_transactions = file_content['otx']
 
             # Load from JSON
-            with open('blockchain.txt', mode='r') as f:
+            with open('blockchain-{}.txt'.format(self.node_id), mode='r') as f: #node_id for developpment only. Remove for production
                 text_content = f.readlines()
                 # Loading blockchain
                 # Range selector -1 to remove the line break
@@ -125,7 +126,7 @@ class Blockchain:
             #     f.write(pickle.dumps(save_data))
 
             # Using JSON
-            with open('blockchain.txt', mode='w') as f:
+            with open('blockchain-{}.txt'.format(self.node_id), mode='w') as f: #node_id for developpment only. Remove for production
                 # Convert block objects to dictionary. JSON doesn't know Python objects
                 saveable_chain = [block.__dict__ for block in
                                     [Block(block_el.index, block_el.previous_hash,
@@ -160,10 +161,10 @@ class Blockchain:
 
 
     def get_balance(self):
-        if self.hosting_node == None:
+        if self.public_key == None:
             return None
 
-        participant = self.hosting_node
+        participant = self.public_key
         # Sent amounts in Blockchain
         tx_sender = [[tx.amount for tx in block.transactions  # block['transactions']
                     if tx.sender == participant] for block in self.__chain]
@@ -232,7 +233,7 @@ class Blockchain:
         #     [('sender', sender), ('recipient', recipient), ('amount', amount)])
 
         # prevent adding transaction when no wallet loaded
-        if self.hosting_node == None:
+        if self.public_key == None:
             return None
 
         transaction = Transaction(sender, recipient, amount, signature)
@@ -246,7 +247,7 @@ class Blockchain:
 
     def mine_block(self):
         # prevent adding transaction when no wallet loaded
-        if self.hosting_node == None:
+        if self.public_key == None:
             return None
 
         # index [-1] accesses the last block of the chain
@@ -268,7 +269,7 @@ class Blockchain:
             if not Wallet.verify_transaction_signature(tx):
                 return None
 
-        reward_transaction = Transaction('MINING', self.hosting_node, MINING_REWARD, '')
+        reward_transaction = Transaction('MINING', self.public_key, MINING_REWARD, '')
         copied_open_transactions.append(reward_transaction)
         block = Block(len(self.__chain), hashed_block,
                     copied_open_transactions, proof)
