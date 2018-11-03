@@ -142,6 +142,78 @@ def add_transaction():
         return jsonify(response), 500
 
 
+@app.route('/broadcast-transaction', methods=['POST'])
+def broadcast_transaction():
+    values = request.get_json()
+    if not values:
+        response = {
+            'message': 'No values found!'
+        }
+        return jsonify(response), 400
+
+    required_fields = ['sender', 'recipient', 'amount', 'signature']
+    if not all(key in values for key in required_fields):
+        response = {
+            'message': 'Missing attributes!'
+        }
+        return jsonify(response), 400
+    else:
+        tx = blockchain.add_transaction(values['recipient'], values['sender'], values['signature'], values['amount'], is_receiving=True)
+        if tx != None:
+                tx = tx.__dict__
+                response = {
+                    'message': 'Transaction added successfully',
+                    'transaction': tx,
+                }
+                return jsonify(response), 201
+        else:
+            response = {
+                'message': 'Error adding transaction'
+            }
+            return jsonify(response), 500
+
+
+@app.route('/broadcast-block', methods=['POST'])
+def broadcast_block():
+    values = request.get_json()
+    if not values:
+        response = {
+            'message': 'No values found!'
+        }
+        return jsonify(response), 400
+
+    if 'block' not in values:
+        response = {
+            'message': 'No block found!'
+        }
+        return jsonify(response), 400
+    else:
+        block = values['block']
+        # check if received block is the next block in our local blockchain
+        if block['index'] == blockchain.chain[-1].index + 1:
+            if blockchain.add_block(block):
+                response = {
+                    'message': 'Block added to blockchain'
+                }
+                return jsonify(response), 201
+            else:
+                response = {
+                    'message': 'Block not added'
+                }
+                return jsonify(response), 400
+
+        # handling if block higher than last block + 1
+        elif block['index'] > blockchain.chain[-1]:
+            pass
+        # handling when block is lower in the chain than our chain
+        else:
+            response = {
+                'message': 'Blockchain seems to be shorter. Block not added'
+            }
+            return jsonify(response), 409 #sended data invalid
+
+
+
 @app.route('/chain', methods=['GET'])
 def get_chain():
     chain_snapshot = blockchain.chain

@@ -2,7 +2,10 @@ import functools
 import hashlib  # For hashing
 import json
 import pickle  # binary JSON alternative
-# from collections import OrderedDict  # to sort dictionaries
+
+#External packages
+## Python equivalent to axios in the front end app
+import requests
 
 
 # from utility is a folder. with the empty file __init__.py all the other files are bundled. 
@@ -160,11 +163,13 @@ class Blockchain:
         return self.__chain[-1]
 
 
-    def get_balance(self):
-        if self.public_key == None:
-            return None
-
-        participant = self.public_key
+    def get_balance(self, sender=None):
+        if sender == None:
+            if self.public_key == None:
+                return None
+            participant = self.public_key
+        else:
+            participant = sender
         # Sent amounts in Blockchain
         tx_sender = [[tx.amount for tx in block.transactions  # block['transactions']
                     if tx.sender == participant] for block in self.__chain]
@@ -217,7 +222,7 @@ class Blockchain:
         # return balance
 
 
-    def add_transaction(self, recipient, sender, signature, amount=1.0):
+    def add_transaction(self, recipient, sender, signature, amount=1.0, is_receiving=False):
         """Adds transactions to the open_transactions dictionary
         Arguments:
             :sender: the sender of the transaction
@@ -233,13 +238,27 @@ class Blockchain:
         #     [('sender', sender), ('recipient', recipient), ('amount', amount)])
 
         # prevent adding transaction when no wallet loaded
-        if self.public_key == None:
-            return None
+        # if self.public_key == None:
+        #     return None
 
         transaction = Transaction(sender, recipient, amount, signature)
         if Verification.verify_transaction(transaction, self.get_balance):
             self.__open_transactions.append(transaction)
             self.save_data()
+            #Broadcast transaction to all peer nodes as long it is NOT a received broadcast
+            if not is_receiving:
+                for node in self.__peer_nodes:
+                    url = 'http://{}/broadcast-transaction'.format(node)
+                    try:
+                        response = requests.post(url, json={'sender': sender, 'recipient': recipient, 'amount': amount, 'signature': signature})
+                        if response.status_code == 400 or response.status_code == 500:
+                            print('Transaction declined. Need resolving')
+                            return False
+                    # continue with next peer node if connection error (node not online)
+                    except requests.exceptions.ConnectionError:
+                        continue
+                        
+
             return transaction
         else:
             return None
@@ -275,10 +294,48 @@ class Blockchain:
                     copied_open_transactions, proof)
         
         self.__chain.append(block)
+        
         #Empty open transaction files and save the datas
         self.__open_transactions = []
         self.save_data()
+        #Broadcasting new block
+        for node in self.__peer_nodes:
+            url = 'http://{}/broadcast-block'.format(node)
+            converted_block = block.__dict__.copy()
+            converted_block['transactions'] = [tx.__dict__ for tx in converted_block['transactions']]
+            try:
+                response = requests.post(url, json={'block': converted_block})
+                if response.status_code == 400 or response.status_code == 500:
+                    print('Block declined. Needs resolving')
+            except requests.exceptions.ConnectionError:
+                continue
+
+        
         return block
+
+
+    def add_block(self, block):
+        # converting the received dictionary transactions to transaction objects
+        transactions = [Transaction(tx['sender'], tx['recipient'], tx['amount'], tx['signature']) for tx in block['transactions']]
+        proof_is_valid = Verification.valid_proof(transactions[:-1], block['previous_hash'], block['proof'])
+        hashes_match = hash_block(self.chain[-1]) == block['previous_hash']
+        if not proof_is_valid or not hashes_match:
+            return False
+
+        converted_block = Block(block['index'], block['previous_hash'], transactions, block['proof'], block['timestamp'])
+        self.__chain.append(converted_block)
+        #Removing transaction from open_transaction if they are in the mined block
+        stored_transactions = self.__open_transactions[:]
+        for itx in block['transactions']:
+            for opentx in stored_transactions:
+                if opentx.sender == itx['sender'] and opentx.recipient == itx['recipient'] and opentx.amount == itx['amount'] and opentx.signature == itx['signature']:
+                    try:
+                        self.__open_transactions.remove(opentx)
+                    except ValueError:
+                        print('Item was alredy removed')
+        
+        self.save_data()
+        return True
 
 
     def add_peer_node(self, node):
