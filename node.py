@@ -78,6 +78,12 @@ def get_balance():
 
 @app.route('/mine', methods=['POST'])
 def mine_block():
+    if blockchain.resolve_conflicts:
+        response = {
+            'message': 'Resolve conflicts first! Block not added'
+        }
+        return jsonify(response), 409
+
     block = blockchain.mine_block()
     if block != None:
         #converting block to dictionary
@@ -97,6 +103,16 @@ def mine_block():
             'wallet_setup': wallet.public_key != None,
         }
         return jsonify(response), 500
+
+@app.route('/resolve-conflicts', methods=['POST'])
+def resolve_conflicts():
+    #resolve returns replace true or false
+    replaced = blockchain.resolve()
+    if replaced:
+        response = {'message': 'Local chain was replaced'}
+    else:
+        response = {'message': 'Local chain kept'}
+    return jsonify(response), 200
 
 
 @app.route('/transaction', methods=['POST'])
@@ -189,7 +205,7 @@ def broadcast_block():
         return jsonify(response), 400
     else:
         block = values['block']
-        # check if received block is the next block in our local blockchain
+        # check if received block is the next block in our local blockchain and add it
         if block['index'] == blockchain.chain[-1].index + 1:
             if blockchain.add_block(block):
                 response = {
@@ -200,12 +216,16 @@ def broadcast_block():
                 response = {
                     'message': 'Block not added'
                 }
-                return jsonify(response), 400
+                return jsonify(response), 409 #sended data invalid
 
-        # handling if block higher than last block + 1
-        elif block['index'] > blockchain.chain[-1]:
-            pass
-        # handling when block is lower in the chain than our chain
+        # handling if block higher than last block + 1. Means our local blockchain is back from other blockchains
+        elif block['index'] > blockchain.chain[-1].index:
+            response = {
+                'message': 'Blockchain seems to differ from local blockchain'
+            }
+            blockchain.resolve_conflicts = True
+            return jsonify(response), 200 #not an error as our blockchain is shorter, so we have a problem
+        # handling when block is lower in the chain than our chain. Throw message not added
         else:
             response = {
                 'message': 'Blockchain seems to be shorter. Block not added'

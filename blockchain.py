@@ -7,7 +7,6 @@ import pickle  # binary JSON alternative
 ## Python equivalent to axios in the front end app
 import requests
 
-
 # from utility is a folder. with the empty file __init__.py all the other files are bundled. 
 # so we can import 'from folderName.fileName import className or functionName
 from utility.hash_utils import hash_block
@@ -36,6 +35,7 @@ class Blockchain:
         self.__peer_nodes = set()
         self.public_key = public_key
         self.node_id = node_id #node_id for developpment only. Remove for production
+        self.resolve_conflicts = False
         self.load_data()
 
 
@@ -306,7 +306,11 @@ class Blockchain:
             try:
                 response = requests.post(url, json={'block': converted_block})
                 if response.status_code == 400 or response.status_code == 500:
-                    print('Block declined. Needs resolving')
+                    print('Block declined!')
+                # when broadcasting block to peers returns a 409 message then set reolve_conflicts. see node.py broadcast_block
+                if response.status_code == 409:
+                    self.resolve_conflicts = True
+
             except requests.exceptions.ConnectionError:
                 continue
 
@@ -337,6 +341,28 @@ class Blockchain:
         self.save_data()
         return True
 
+
+    def resolve(self):
+        winner_chain = self.chain
+        replace = False
+        for node in self.__peer_nodes:
+            url = 'http://{}/chain'.format(node)
+            try:
+                response = requests.get(url)
+                node_chain = response.json()
+                # node_chain.transactions = [Transaction(tx['sender'], tx['recipient'], tx['amount'], tx['signature']) for tx in node_chain.transactions]
+                node_chain = [Block(block['index'], block['previous_hash'], [Transaction(tx['sender'], tx['recipient'], tx['amount'], tx['signature']) for tx in block['transactions']], block['proof'], block['timestamp']) for block in node_chain]
+                if len(node_chain) > len(winner_chain) and Verification.verify_chain(node_chain):
+                    replace = True
+                    winner_chain = node_chain
+            except requests.exceptions.ConnectionError:
+                continue
+        self.chain = winner_chain
+        self.resolve_conflicts = False
+        if replace:
+            self.__open_transactions = []
+        self.save_data()
+        return replace
 
     def add_peer_node(self, node):
         """Adds new node to the peer_node_set
